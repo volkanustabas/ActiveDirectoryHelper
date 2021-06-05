@@ -11,6 +11,8 @@ namespace ActiveDirectoryHelper
 {
     public partial class Form1 : Form
     {
+        private string _expireDate;
+        private string _isPasswordLock;
         public DirectorySearcher DirSearch;
 
         public Form1()
@@ -41,7 +43,6 @@ namespace ActiveDirectoryHelper
 
         private void ShowUserInformation(SearchResult rs)
         {
-
             rtb_userDetail.Clear();
             lb_memberOf.Items.Clear();
 
@@ -51,8 +52,7 @@ namespace ActiveDirectoryHelper
 
             Cursor.Current = Cursors.Default;
 
-            var pd = PasswordDetails(tb_user.Text);
-            var ipl = IsPasswordLock(tb_user.Text);
+            PasswordDetails(tb_user.Text);
 
             rtb_userDetail.AppendText(@"Username : " + rs.GetDirectoryEntry().Properties["samaccountname"].Value +
                                       Environment.NewLine + @"FirstName : " +
@@ -66,7 +66,8 @@ namespace ActiveDirectoryHelper
                                       rs.GetDirectoryEntry().Properties["company"].Value + Environment.NewLine +
                                       @"TelephoneNumber : " +
                                       rs.GetDirectoryEntry().Properties["telephoneNumber"].Value + Environment.NewLine +
-                                      @"PasswordExpireDate : " + pd + Environment.NewLine + @"IsPasswordLock? :" + ipl);
+                                      @"PasswordExpireDate : " + _expireDate + Environment.NewLine +
+                                      @"IsPasswordLock? :" + _isPasswordLock);
 
 
             foreach (var group in rs.GetDirectoryEntry().Properties["memberOf"])
@@ -136,39 +137,18 @@ namespace ActiveDirectoryHelper
             return null;
         }
 
-        public static string PasswordDetails(string expireDate)
+        public void PasswordDetails(string userName)
         {
             var domain = new PrincipalContext(ContextType.Domain);
-            var user = UserPrincipal.FindByIdentity(domain, expireDate);
+            var user = UserPrincipal.FindByIdentity(domain, userName);
             if (user != null)
             {
                 var entry = (DirectoryEntry) user.GetUnderlyingObject();
                 var native = (IADsUser) entry.NativeObject;
-                expireDate = native.PasswordExpirationDate.ToString("g");
+                _expireDate = native.PasswordExpirationDate.ToString("g");
+                _isPasswordLock = user.IsAccountLockedOut() ? "Lock" : "Not Lock";
             }
-
-            return expireDate;
         }
-
-
-        public static string IsPasswordLock(string username)
-        {
-            var ctx = new PrincipalContext(ContextType.Domain);
-
-            var user = UserPrincipal.FindByIdentity(ctx, username);
-
-            if (user != null)
-            {
-                var displayName = user.DisplayName;
-
-                if (user.IsAccountLockedOut())
-                    return "Locked";
-                return "Not Locked";
-            }
-
-            return "0";
-        }
-
 
         private void btn_search_Click(object sender, EventArgs e)
         {
